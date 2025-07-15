@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Benchmark Comparison</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="js/charts.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 350px;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        .sidebar-header p {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i {
+            font-size: 1.1rem;
+        }
+
+        /* Provider/Domain Item Styles */
+        .provider-item, .domain-item {
+            margin-bottom: 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .provider-item:hover, .domain-item:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-1px);
+        }
+
+        .provider-header, .domain-header {
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+
+        .provider-header:hover, .domain-header:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        .provider-name, .domain-name {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .chevron {
+            transition: transform 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .provider-item.expanded .chevron,
+        .domain-item.expanded .chevron {
+            transform: rotate(180deg);
+        }
+
+        /* Dropdown Styles */
+        .models-dropdown, .benchmarks-dropdown {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .provider-item.expanded .models-dropdown,
+        .domain-item.expanded .benchmarks-dropdown {
+            max-height: 400px;
+        }
+
+        .model-item, .benchmark-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .model-item:hover, .benchmark-item:hover {
+            background: rgba(255,255,255,0.1);
+            padding-left: 25px;
+        }
+
+        .model-item:last-child, .benchmark-item:last-child {
+            border-bottom: none;
+        }
+
+        .model-checkbox, .benchmark-checkbox {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            border: 2px solid rgba(255,255,255,0.5);
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .model-checkbox:checked, .benchmark-checkbox:checked {
+            background: #4ade80;
+            border-color: #4ade80;
+        }
+
+        .model-label, .benchmark-label {
+            font-size: 0.95rem;
+            cursor: pointer;
+            user-select: none;
+            flex: 1;
+        }
+
+        /* Action Buttons */
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: #4ade80;
+            color: white;
+            box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: #22c55e;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(74, 222, 128, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .main-header {
+            background: white;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .main-header h2 {
+            font-size: 1.8rem;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+
+        .main-header p {
+            color: #6b7280;
+            font-size: 1rem;
+        }
+
+        .charts-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        /* Chart Card Styles */
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e5e7eb;
+        }
+
+        .chart-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-card h3 i {
+            color: #667eea;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-card h4 {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 80px 40px;
+            color: #6b7280;
+        }
+
+        .no-data i {
+            font-size: 4rem;
+            color: #d1d5db;
+            margin-bottom: 20px;
+        }
+
+        .no-data h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: #374151;
+        }
+
+        .no-data p {
+            font-size: 1rem;
+        }
+
+        /* Scale Toggle */
+        .scale-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .scale-toggle label {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #e5e7eb;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #667eea;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(30px);
+        }
+
+        /* Spinner Animation */
+        .fa-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Selection Counter */
+        .selection-counter {
+            background: rgba(255,255,255,0.15);
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 300px;
+            }
+            
+            .charts-area {
+                padding: 20px;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+
+        /* Custom Scrollbar */
+        .sidebar-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar-content::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .sidebar-content::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+        }
+
+        .sidebar-content::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-chart-line"></i> AI Compare</h1>
+                <p>Model Benchmark Analysis</p>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Selection Counter -->
+                <div class="selection-counter">
+                    <div id="selectionCounter">
+                        <strong>Selected:</strong> <span id="modelCount">0</span> models, <span id="benchmarkCount">0</span> benchmarks
+                    </div>
+                </div>
+
+                <!-- Model Providers Section -->
+                <div class="section">
+                    <div class="section-title">
+                        <i class="fas fa-robot"></i>
+                        Model Providers
+                    </div>
+                    <div id="providersContainer">
+                        <!-- Providers will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Benchmark Domains Section -->
+                <div class="section">
+                    <div class="section-title">
+                        <i class="fas fa-tasks"></i>
+                        Benchmark Domains
+                    </div>
+                    <div id="domainsContainer">
+                        <!-- Domains will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="updateCharts()">
+                        <i class="fas fa-sync-alt"></i> Update Charts
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearAllSelections()">
+                        <i class="fas fa-times"></i> Clear All
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="main-header">
+                <h2>Performance Analysis Dashboard</h2>
+                <p>Compare AI models across different benchmarks with interactive visualizations</p>
+            </div>
+
+            <div class="charts-area" id="chartsArea">
+                <div class="no-data">
+                    <i class="fas fa-chart-bar"></i>
+                    <h3>Welcome to AI Model Comparison</h3>
+                    <p>Select models and benchmarks from the sidebar to start comparing performance metrics</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data structures
+        let benchmarkData = {};
+        let models = [];
+        let benchmarks = [];
+        let charts = {};
+        let jsonData = {};
+
+        // Model providers mapping
+        const modelProviders = {
+            'OpenAI': {
+                icon: 'fas fa-brain',
+                models: ['o4-mini', 'o3', 'o3-mini', 'o1', 'GPT-4o', 'GPT-4o mini', 'GPT-4.1', 'GPT-4 Turbo', 'GPT-4', 'GPT-4 (original)', 'GPT-3.5', 'Codex-002', 'Codex-001']
+            },
+            'Anthropic': {
+                icon: 'fas fa-robot',
+                models: ['Claude 4 Sonnet', 'Claude 3.5 Sonnet', 'Claude 3.5 Haiku', 'Claude 3 Opus', 'Claude 3 Sonnet']
+            },
+            'DeepSeek': {
+                icon: 'fas fa-search',
+                models: ['DeepSeek-R1', 'DeepSeek-R1-Zero', 'DeepSeek-V3', 'DeepSeek-V2', 'DeepSeek-Coder-V2-236B', 'DeepSeek-Coder-V2-16B', 'DeepSeek-Coder-33B', 'DeepSeek-Coder-6.7B', 'DeepSeek-Coder-1.3B']
+            },
+            'Google': {
+                icon: 'fab fa-google',
+                models: ['Gemini 2.5 Pro', 'Gemini 2.0 Flash', 'Gemini 1.5 Pro', 'Gemini Pro 1.5']
+            },
+            'Meta': {
+                icon: 'fab fa-meta',
+                models: ['Llama 3.3 70B', 'Llama 3.2 3B', 'Llama 3.1 405B', 'Llama 3.1 70B', 'Llama 3.1 8B', 'Llama3-SWE-RL-70B', 'Llama 2 70B', 'Llama 2 13B', 'Llama 2 7B', 'CodeLLama-34B', 'CodeLLama-13B', 'CodeLLama-7B']
+            },
+            'xAI': {
+                icon: 'fas fa-times',
+                models: ['Grok-4', 'Grok-3', 'Grok-2', 'Grok-1.5', 'Grok-1']
+            },
+            'Mistral AI': {
+                icon: 'fas fa-wind',
+                models: ['Mistral Large', 'Mixtral 8x7B', 'Mistral 7B', 'Codestral']
+            },
+            'Alibaba': {
+                icon: 'fas fa-cloud',
+                models: ['Qwen 2.5-Coder 32B', 'Qwen 2.5-Coder 14B', 'Qwen 2.5-Coder 7B', 'Qwen 2.5 72B', 'Qwen 2.5 32B', 'Qwen 2.5 14B', 'Qwen 2.5 7B', 'Qwen-72B', 'SoRFT-Qwen-7B']
+            },
+            'Moonshot AI': {
+                icon: 'fas fa-moon',
+                models: ['Kimi k2', 'Kimi k1.5', 'Kimi']
+            },
+            'Other': {
+                icon: 'fas fa-cogs',
+                models: ['StarCoder-16B', 'SWE-Fixer', 'Lingma SWE-GPT 72B', 'Lingma SWE-GPT 7B']
+            }
+        };
+
+        // Benchmark domains mapping
+        const benchmarkDomains = {
+            'Code Generation & Software Engineering': {
+                icon: 'fas fa-code',
+                benchmarks: ['HumanEval', 'HumanEval-XL', 'HumanEval-X', 'DS-1000', 'DS-Bench', 'SWE-bench', 'SWE-bench Verified', 'SWE-bench +']
+            },
+            'Mathematical Reasoning': {
+                icon: 'fas fa-calculator',
+                benchmarks: ['GSM8K', 'GSM-PLUS', 'MATH']
+            }
+        };
+
+        // Load JSON data
+        async function loadData() {
+            try {
+                const response = await fetch('data/ai_model_benchmarks.json');
+                jsonData = await response.json();
+                
+                // Extract models and benchmarks from JSON
+                models = Object.keys(jsonData);
+                
+                // Get all unique benchmarks
+                const benchmarkSet = new Set();
+                Object.values(jsonData).forEach(modelData => {
+                    Object.keys(modelData).forEach(benchmark => {
+                        benchmarkSet.add(benchmark);
+                    });
+                });
+                benchmarks = Array.from(benchmarkSet);
+                
+                // Transform data structure
+                benchmarkData = {};
+                models.forEach(modelName => {
+                    benchmarkData[modelName] = {};
+                    benchmarks.forEach(benchmark => {
+                        const score = jsonData[modelName][benchmark];
+                        // Treat 0.0 as missing data, only store actual scores
+                        if (score && score > 0) {
+                            benchmarkData[modelName][benchmark] = score;
+                        }
+                    });
+                });
+                
+                console.log('Data loaded successfully:', {
+                    models: models.length,
+                    benchmarks: benchmarks.length
+                });
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                // Fallback to empty data if loading fails
+                models = [];
+                benchmarks = [];
+                benchmarkData = {};
+            }
+        }
+
+        // Initialize the page
+        async function init() {
+            // Show loading state
+            document.getElementById('chartsArea').innerHTML = `
+                <div class="no-data">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <h3>Loading Data...</h3>
+                    <p>Please wait while we load the model benchmark data</p>
+                </div>
+            `;
+            
+            await loadData();
+            populateProviders();
+            populateDomains();
+            updateSelectionCounter();
+            
+            // Reset to initial state
+            document.getElementById('chartsArea').innerHTML = `
+                <div class="no-data">
+                    <i class="fas fa-chart-bar"></i>
+                    <h3>Welcome to AI Model Comparison</h3>
+                    <p>Select models and benchmarks from the sidebar to start comparing performance metrics</p>
+                </div>
+            `;
+        }
+
+        // Populate model providers
+        function populateProviders() {
+            const container = document.getElementById('providersContainer');
+            
+            Object.entries(modelProviders).forEach(([providerName, providerData]) => {
+                // Filter models that exist in our data
+                const availableModels = providerData.models.filter(model => models.includes(model));
+                
+                if (availableModels.length === 0) return;
+
+                const providerDiv = document.createElement('div');
+                providerDiv.className = 'provider-item';
+                providerDiv.innerHTML = `
+                    <div class="provider-header" onclick="toggleProvider('${providerName}')">
+                        <div class="provider-name">
+                            <i class="${providerData.icon}"></i> ${providerName}
+                        </div>
+                        <i class="fas fa-chevron-down chevron"></i>
+                    </div>
+                    <div class="models-dropdown">
+                        ${availableModels.map(model => `
+                            <div class="model-item" onclick="toggleModel('${model}', event)">
+                                <input type="checkbox" class="model-checkbox" id="model-${model}" value="${model}" onclick="event.stopPropagation()" onchange="updateSelectionCounter()">
+                                <label class="model-label" for="model-${model}">${model}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(providerDiv);
+            });
+        }
+
+        // Populate benchmark domains
+        function populateDomains() {
+            const container = document.getElementById('domainsContainer');
+            
+            Object.entries(benchmarkDomains).forEach(([domainName, domainData]) => {
+                // Filter benchmarks that exist in our data
+                const availableBenchmarks = domainData.benchmarks.filter(benchmark => benchmarks.includes(benchmark));
+                
+                if (availableBenchmarks.length === 0) return;
+
+                const domainDiv = document.createElement('div');
+                domainDiv.className = 'domain-item';
+                domainDiv.innerHTML = `
+                    <div class="domain-header" onclick="toggleDomain('${domainName}')">
+                        <div class="domain-name">
+                            <i class="${domainData.icon}"></i> ${domainName}
+                        </div>
+                        <i class="fas fa-chevron-down chevron"></i>
+                    </div>
+                    <div class="benchmarks-dropdown">
+                        ${availableBenchmarks.map(benchmark => `
+                            <div class="benchmark-item" onclick="toggleBenchmark('${benchmark}', event)">
+                                <input type="checkbox" class="benchmark-checkbox" id="benchmark-${benchmark}" value="${benchmark}" onclick="event.stopPropagation()" onchange="updateSelectionCounter()">
+                                <label class="benchmark-label" for="benchmark-${benchmark}">${benchmark}</label>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(domainDiv);
+            });
+        }
+
+        // Toggle provider dropdown
+        function toggleProvider(providerName) {
+            const providerItems = document.querySelectorAll('.provider-item');
+            providerItems.forEach(item => {
+                if (item.querySelector('.provider-name').textContent.trim().includes(providerName)) {
+                    item.classList.toggle('expanded');
+                }
+            });
+        }
+
+        // Toggle domain dropdown
+        function toggleDomain(domainName) {
+            const domainItems = document.querySelectorAll('.domain-item');
+            domainItems.forEach(item => {
+                if (item.querySelector('.domain-name').textContent.trim().includes(domainName)) {
+                    item.classList.toggle('expanded');
+                }
+            });
+        }
+
+        // Toggle model selection
+        function toggleModel(modelName, event) {
+            if (event && event.target.type === 'checkbox') {
+                // If clicking directly on checkbox, let it handle naturally
+                updateSelectionCounter();
+                return;
+            }
+            const checkbox = document.getElementById(`model-${modelName}`);
+            checkbox.checked = !checkbox.checked;
+            updateSelectionCounter();
+        }
+
+        // Toggle benchmark selection
+        function toggleBenchmark(benchmarkName, event) {
+            if (event && event.target.type === 'checkbox') {
+                // If clicking directly on checkbox, let it handle naturally
+                updateSelectionCounter();
+                return;
+            }
+            const checkbox = document.getElementById(`benchmark-${benchmarkName}`);
+            checkbox.checked = !checkbox.checked;
+            updateSelectionCounter();
+        }
+
+        // Update selection counter
+        function updateSelectionCounter() {
+            const selectedModels = document.querySelectorAll('.model-checkbox:checked').length;
+            const selectedBenchmarks = document.querySelectorAll('.benchmark-checkbox:checked').length;
+            
+            document.getElementById('modelCount').textContent = selectedModels;
+            document.getElementById('benchmarkCount').textContent = selectedBenchmarks;
+        }
+
+        // Get selected items
+        function getSelectedModels() {
+            return Array.from(document.querySelectorAll('.model-checkbox:checked')).map(cb => cb.value);
+        }
+
+        function getSelectedBenchmarks() {
+            return Array.from(document.querySelectorAll('.benchmark-checkbox:checked')).map(cb => cb.value);
+        }
+
+        // Clear all selections
+        function clearAllSelections() {
+            document.querySelectorAll('.model-checkbox, .benchmark-checkbox').forEach(cb => cb.checked = false);
+            updateSelectionCounter();
+        }
+
+        // Chart functions have been moved to js/charts.js
+
+        // Update charts
+        function updateCharts() {
+            const selectedModels = getSelectedModels();
+            const selectedBenchmarks = getSelectedBenchmarks();
+            
+            const chartsArea = document.getElementById('chartsArea');
+            
+            if (selectedModels.length === 0 || selectedBenchmarks.length === 0) {
+                chartsArea.innerHTML = `
+                    <div class="no-data">
+                        <i class="fas fa-info-circle"></i>
+                        <h3>No Data Selected</h3>
+                        <p>Please select at least one model and one benchmark from the sidebar to view comparisons</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Clear existing charts
+            Object.values(charts).forEach(chart => chart.destroy());
+            charts = {};
+            
+            // Calculate statistics
+            const stats = calculateStats(selectedModels, selectedBenchmarks);
+            
+            chartsArea.innerHTML = `
+                <!-- Statistics -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h4>Data Points</h4>
+                        <div class="stat-value">${stats.totalDataPoints}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Average Score</h4>
+                        <div class="stat-value">${stats.avgScore}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Best Model</h4>
+                        <div class="stat-value" style="font-size: 1.2rem;">${stats.bestModel || 'N/A'}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h4>Score Range</h4>
+                        <div class="stat-value" style="font-size: 1.4rem;">${stats.minScore} - ${stats.maxScore}</div>
+                    </div>
+                </div>
+
+                <!-- Bar Chart -->
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-bar"></i> Performance Comparison</h3>
+                    <div class="scale-toggle">
+                        <label>Linear Scale</label>
+                        <div class="toggle-switch" id="barScaleToggle" onclick="toggleBarScale()"></div>
+                        <label>Log Scale</label>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Radar Chart -->
+                ${selectedBenchmarks.length >= 3 ? `
+                <div class="chart-card">
+                    <h3><i class="fas fa-star"></i> Multi-dimensional Analysis</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Line Chart -->
+                <div class="chart-card">
+                    <h3><i class="fas fa-chart-line"></i> Performance Trends</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+            `;
+
+            // Create charts
+            charts.barChart = createBarChart('barChart', selectedModels, selectedBenchmarks);
+            
+            if (selectedBenchmarks.length >= 3) {
+                charts.radarChart = createRadarChart('radarChart', selectedModels, selectedBenchmarks);
+            }
+            
+            charts.lineChart = createLineChart('lineChart', selectedModels, selectedBenchmarks);
+        }
+
+
+
+        // Initialize on page load
+        window.onload = init;
+    </script>
+</body>
+</html>
